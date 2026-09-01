@@ -1,0 +1,48 @@
+# Reusable PR-convention check for every repository in the org.
+#
+# Callers (one job, no inputs):
+#
+#   on:
+#     pull_request:
+#       types: [opened, edited, reopened, synchronize]
+#   jobs:
+#     conventions:
+#       uses: 20262c-g14-discordia/.github/.github/workflows/pr-checks.yml@main
+#
+# Fails when the title is not `type(scope): summary` (optionally prefixed with the Linear
+# issue ID, as `linear issue pr` does) or when the body has no Linear magic-word line
+# such as `Ref DIS-12` or `Closes DIS-12`. Warns when the title is longer than 72
+# characters, because squash merges turn it into the commit subject.
+
+name: PR conventions
+
+on:
+  workflow_call:
+
+permissions: {}
+
+jobs:
+  conventions:
+    name: Title and Linear reference
+    runs-on: ubuntu-latest
+    env:
+      PR_TITLE: ${{ github.event.pull_request.title }}
+      PR_BODY: ${{ github.event.pull_request.body }}
+    steps:
+      - name: Title follows `type(scope): summary`
+        run: |
+          types='feat|fix|docs|chore|refactor|test|ci|build|perf|revert'
+          if ! printf '%s\n' "$PR_TITLE" | grep -Eq "^(DIS-[0-9]+[: ] ?)?($types)(\([a-z0-9._/-]+\))?!?: [^ ].+"; then
+            echo "::error title=PR title::'$PR_TITLE' is not 'type(scope): summary'. Types: $types."
+            exit 1
+          fi
+          if [ "${#PR_TITLE}" -gt 72 ]; then
+            echo "::warning title=PR title::${#PR_TITLE} characters; it becomes the squash commit subject, keep it under 72."
+          fi
+      - name: Body references its Linear issue
+        run: |
+          words='closes|closed|close|fixes|fixed|fix|resolves|resolved|resolve|completes|completed|complete|refs|ref|references|part of|related to|contributes to|towards|toward'
+          if ! printf '%s\n' "$PR_BODY" | tr -d '\r' | grep -Eiq "^($words) DIS-[0-9]+\b"; then
+            echo "::error title=Linear issue::the body needs a line like 'Ref DIS-12' or 'Closes DIS-12' so Linear links the PR."
+            exit 1
+          fi

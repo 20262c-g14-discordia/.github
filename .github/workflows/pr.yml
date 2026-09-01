@@ -1,0 +1,12 @@
+name: PR
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  conventions:
+    uses: ./.github/workflows/pr-checks.yml
