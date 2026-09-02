@@ -12,7 +12,8 @@
 # Fails when the title is not `type(scope): summary` (optionally prefixed with the Linear
 # issue ID, as `linear issue pr` does) or when the body has no Linear magic-word line
 # such as `Ref DIS-12` or `Closes DIS-12`. Warns when the title is longer than 72
-# characters, because squash merges turn it into the commit subject.
+# characters, because squash merges turn it into the commit subject. Release PRs
+# (`release-please--*` branches) are exempt from the Linear reference.
 
 name: PR conventions
 
@@ -40,6 +41,8 @@ jobs:
             echo "::warning title=PR title::${#PR_TITLE} characters; it becomes the squash commit subject, keep it under 72."
           fi
       - name: Body references its Linear issue
+        # Release PRs are opened by release-please from main itself; no issue originates them.
+        if: ${{ !startsWith(github.head_ref, 'release-please--') }}
         run: |
           words='closes|closed|close|fixes|fixed|fix|resolves|resolved|resolve|completes|completed|complete|refs|ref|references|part of|related to|contributes to|towards|toward'
           if ! printf '%s\n' "$PR_BODY" | tr -d '\r' | grep -Eiq "^($words) DIS-[0-9]+\b"; then
