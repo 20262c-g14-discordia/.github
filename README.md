@@ -7,7 +7,7 @@ every repository in the org that does not carry its own copy.
 |---|---|
 | `PULL_REQUEST_TEMPLATE.md` | The PR body every repo gets. Sections and the definition-of-done checklist mirror `meta/CONTRIBUTING.md`. |
 | `.github/workflows/pr-checks.yml` | Reusable workflow that fails a PR whose title is not `type(scope): summary` or whose body has no `Ref DIS-n` / `Closes DIS-n` line. |
-| `.github/workflows/release-please.yml` | Reusable release workflow: release-please turns the Conventional Commits on `main` into a release PR, and that PR's merge into a version bump, `CHANGELOG.md`, a `vX.Y.Z` tag and a GitHub release. |
+| `.github/workflows/release-please.yml` | Reusable release workflow: release-please turns the Conventional Commits on `main` into a release PR, and that PR's merge into a version bump, `CHANGELOG.md`, a `<component>-vX.Y.Z` tag and a GitHub release. |
 
 ## Opting a repository in
 
@@ -60,11 +60,25 @@ until the team decides otherwise: a `feat` bumps the minor, a `fix` the patch, a
 breaking change does not jump to 1.0. The caller workflow is shown at the top of
 `release-please.yml`.
 
-A release is one squash-merged PR titled `chore(main): release X.Y.Z`. Merging it is the
-release; nothing deploys from it yet. With the default workflow token, GitHub does not run
-CI on that PR (it refuses to trigger workflows from events the token creates). If that
-matters, add a fine-grained personal access token as the org secret `RELEASE_PLEASE_TOKEN`
-and the workflow uses it instead.
+A release is one squash-merged PR titled `chore(main): release <component> X.Y.Z`, where
+the component is the package name. Merging it is the release; nothing deploys from it yet.
+The tag it produces carries that component, `discordia-web-v0.1.0`, which keeps tags
+unambiguous across the org's repositories. Set `"include-component-in-tag": false` in the
+config if a repository wants a bare `v0.1.0` instead.
+
+### The release token
+
+With the default workflow token GitHub does not run CI on the release PR: it refuses to
+trigger workflows from events that token creates. A fine-grained personal access token
+stored as `RELEASE_PLEASE_TOKEN` is used instead when present, and the release PR then
+gets the full CI run.
+
+**Store it as a repository secret, not an organization secret.** The org is on the free
+plan, where organization secrets are not available to private repositories: the workflow
+reads an empty value and silently falls back to the workflow token. The symptom is a
+release PR authored by `github-actions` with no checks on it; when the token is picked up,
+the author is the token's owner and CI runs. The token needs Contents, Pull requests and
+Issues at read and write on the repositories it covers.
 
 ## Changing the conventions
 
