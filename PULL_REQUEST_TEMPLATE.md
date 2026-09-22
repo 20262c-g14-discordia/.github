@@ -2,8 +2,11 @@
 Title: `type(scope): summary`, e.g. `feat(messaging): send a DM`. It becomes the squash
 commit on main. `linear issue pr` prefixes the issue ID; that is fine.
 
-Body: keep the `Ref DIS-n` line, the PR check fails without it. Use `Closes DIS-n` when
-this PR finishes the issue. Every section stays; write "none" rather than deleting one.
+Body: keep the `Ref DIS-n` line — the brief asks every PR to reference the story or task
+behind it, and Linear links the PR from that line. Use `Closes DIS-n` when this PR
+finishes the issue, `Ref DIS-n` when it only advances one. The check warns rather than
+fails without it: if the backlog has nothing that fits, replace the line with one sentence
+saying so. Every section stays; write "none" rather than deleting one.
 -->
 
 Ref DIS-

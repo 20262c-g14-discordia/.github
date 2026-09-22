@@ -10,10 +10,14 @@
 #       uses: 20262c-g14-discordia/.github/.github/workflows/pr-checks.yml@main
 #
 # Fails when the title is not `type(scope): summary` (optionally prefixed with the Linear
-# issue ID, as `linear issue pr` does) or when the body has no Linear magic-word line
-# such as `Ref DIS-12` or `Closes DIS-12`. Warns when the title is longer than 72
-# characters, because squash merges turn it into the commit subject. Release PRs
-# (`release-please--*` branches) are exempt from the Linear reference.
+# issue ID, as `linear issue pr` does), because the title becomes the squash commit on
+# main. Warns when the title is longer than 72 characters, for the same reason.
+#
+# Warns — and does not fail — when the body has no Linear magic-word line such as
+# `Ref DIS-12` or `Closes DIS-12`. The brief requires every PR to reference the story or
+# task that originates it, but a missing reference is a prompt to go find the issue, not
+# a reason to hold the branch: see `meta/CONTRIBUTING.md`. Release PRs
+# (`release-please--*` branches) skip the check entirely.
 
 name: PR conventions
 
@@ -24,7 +28,7 @@ permissions: {}
 
 jobs:
   conventions:
-    name: Title and Linear reference
+    name: Title (required) and Linear reference (advisory)
     runs-on: ubuntu-latest
     env:
       PR_TITLE: ${{ github.event.pull_request.title }}
@@ -46,6 +50,5 @@ jobs:
         run: |
           words='closes|closed|close|fixes|fixed|fix|resolves|resolved|resolve|completes|completed|complete|refs|ref|references|part of|related to|contributes to|towards|toward'
           if ! printf '%s\n' "$PR_BODY" | tr -d '\r' | grep -Eiq "^($words) DIS-[0-9]+\b"; then
-            echo "::error title=Linear issue::the body needs a line like 'Ref DIS-12' or 'Closes DIS-12' so Linear links the PR."
-            exit 1
+            echo "::warning title=Linear issue::no line like 'Ref DIS-12' or 'Closes DIS-12', so Linear will not link this PR. The brief asks every PR to reference the story or task behind it. Add one, or state in the body that no issue originated this work."
           fi

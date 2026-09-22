@@ -6,7 +6,7 @@ every repository in the org that does not carry its own copy.
 | File | What it does |
 |---|---|
 | `PULL_REQUEST_TEMPLATE.md` | The PR body every repo gets. Sections and the definition-of-done checklist mirror `meta/CONTRIBUTING.md`. |
-| `.github/workflows/pr-checks.yml` | Reusable workflow that fails a PR whose title is not `type(scope): summary` or whose body has no `Ref DIS-n` / `Closes DIS-n` line. |
+| `.github/workflows/pr-checks.yml` | Reusable workflow that fails a PR whose title is not `type(scope): summary`, and warns when its body has no `Ref DIS-n` / `Closes DIS-n` line. |
 | `.github/workflows/release-please.yml` | Reusable release workflow: release-please turns the Conventional Commits on `main` into a release PR, and that PR's merge into a version bump, `CHANGELOG.md`, a `<component>-vX.Y.Z` tag and a GitHub release. |
 
 ## Opting a repository in
