@@ -1,0 +1,59 @@
+name: build-push
+description: >-
+  Build an image, push it to ECR tagged with the release, and record its digest in
+  /discordia/prd/image/<image> as the version the platform runs.
+
+inputs:
+  image:
+    description: "Repository under discordia/ in ECR, and the parameter's last segment."
+    required: true
+  context:
+    description: "Build context."
+    required: true
+  file:
+    description: "Dockerfile. Defaults to <context>/Dockerfile."
+    required: false
+    default: ""
+  tag:
+    description: "The release tag, e.g. identity-v1.2.3. Anything else is refused."
+    required: true
+
+outputs:
+  image:
+    description: "The pushed image, pinned by digest: <registry>/discordia/<image>@sha256:…"
+    value: ${{ steps.record.outputs.image }}
+
+runs:
+  using: composite
+  steps:
+    - name: Refuse anything but a release tag
+      shell: bash
+      env:
+        TAG: ${{ inputs.tag }}
+      run: '"$GITHUB_ACTION_PATH/build-push.sh" check-tag "$TAG"'
+
+    - id: ecr
+      uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
+
+    - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+    # provenance: false keeps the push a single image manifest, so the digest recorded is
+    # the image's own, not an attestation index's.
+    - id: push
+      uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+      with:
+        context: ${{ inputs.context }}
+        file: ${{ inputs.file != '' && inputs.file || format('{0}/Dockerfile', inputs.context) }}
+        push: true
+        provenance: false
+        tags: ${{ steps.ecr.outputs.registry }}/discordia/${{ inputs.image }}:${{ inputs.tag }}
+
+    - id: record
+      name: Record the digest as the version to run
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.image }}
+        REGISTRY: ${{ steps.ecr.outputs.registry }}
+        DIGEST: ${{ steps.push.outputs.digest }}
+        TAG: ${{ inputs.tag }}
+      run: '"$GITHUB_ACTION_PATH/build-push.sh" record "$IMAGE" "$REGISTRY" "$DIGEST" "$TAG"'
