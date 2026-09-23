@@ -32,3 +32,37 @@ service_state() {
     echo down
   fi
 }
+
+# register_revision CLUSTER SERVICE IMAGE [CONTAINER]
+# Registers a new revision of the service's current task definition in which only
+# CONTAINER's image becomes IMAGE, and prints its ARN. CONTAINER may be omitted only when
+# the task definition has exactly one container. Everything else Terraform set -- the
+# environment, secrets, roles, sizing -- is carried over unchanged. The JSON registered is
+# left in $RUNNER_TEMP/task-definition.json.
+register_revision() {
+  local cluster=$1 service=$2 image=$3 container=${4:-} out current td names count file
+  out=$(aws ecs describe-services --cluster "$cluster" --services "$service" \
+    --output json) || return 1
+  current=$(jq -r '.services[0].taskDefinition' <<<"$out")
+  td=$(aws ecs describe-task-definition --task-definition "$current" --output json) || return 1
+  names=$(jq -r '.taskDefinition.containerDefinitions[].name' <<<"$td")
+  count=$(grep -c . <<<"$names" || true)
+  if [ -z "$container" ]; then
+    if [ "$count" -ne 1 ]; then
+      echo "::error::$service runs $count containers ($(paste -sd, <<<"$names")); name the one to update with 'container'" >&2
+      return 1
+    fi
+    container=$names
+  elif ! grep -qxF -- "$container" <<<"$names"; then
+    echo "::error::$service has no container named '$container' (it has: $(paste -sd, <<<"$names"))" >&2
+    return 1
+  fi
+  file=${RUNNER_TEMP:-$(mktemp -d)}/task-definition.json
+  jq --arg c "$container" --arg image "$image" '
+    .taskDefinition
+    | .containerDefinitions |= map(if .name == $c then .image = $image else . end)
+    | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities,
+          .registeredAt, .registeredBy, .deregisteredAt)' <<<"$td" >"$file"
+  out=$(aws ecs register-task-definition --cli-input-json "file://$file" --output json) || return 1
+  jq -r '.taskDefinition.taskDefinitionArn' <<<"$out"
+}
