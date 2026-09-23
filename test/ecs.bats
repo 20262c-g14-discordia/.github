@@ -116,7 +116,7 @@ updated() { # the update-service answer: our new PRIMARY deployment beside the o
     respond ecs.describe-services -
 
   run --separate-stderr roll discordia-prd-cluster identity "$TD5"
-  [ "$status" -ne 0 ]
+  [ "$status" -eq 3 ]
   [[ $stderr == *"deployment ecs-svc/2 failed; ECS rolled back"* ]]
 }
 
@@ -125,7 +125,7 @@ updated() { # the update-service answer: our new PRIMARY deployment beside the o
   service ACTIVE "$TD4" "[$(deployment ecs-svc/3 PRIMARY "$TD4" COMPLETED)]" | respond ecs.describe-services -
 
   run --separate-stderr roll discordia-prd-cluster identity "$TD5"
-  [ "$status" -ne 0 ]
+  [ "$status" -eq 1 ]
   [[ $stderr == *"ecs-svc/2 is no longer listed"* ]]
 }
 
@@ -135,8 +135,9 @@ updated() { # the update-service answer: our new PRIMARY deployment beside the o
   service ACTIVE "$TD5" "[$(deployment ecs-svc/2 PRIMARY "$TD5" IN_PROGRESS)]" | respond ecs.describe-services -
 
   run --separate-stderr roll discordia-prd-cluster identity "$TD5"
-  [ "$status" -ne 0 ]
+  [ "$status" -eq 1 ]
   [[ $stderr == *"did not settle"* ]]
+  [[ $stderr == *"ECS may still finish it"* ]]
   [ "$(grep -c "ecs describe-services" "$AWS_STUB_LOG")" -eq 3 ]
 }
 

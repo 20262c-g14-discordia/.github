@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# The roll-service action. Reads CLUSTER, SERVICE, CONTAINER (optional), and exactly one
-# of IMAGE (register a revision with it first) or TASK_DEFINITION (roll to that revision)
-# from the environment. Rolls SERVICE and fails if ECS rolls it back. With the platform
-# down it changes nothing and passes: the recorded image is what `make up` starts.
+# The roll-service action. Reads CLUSTER, SERVICE, CONTAINER and PREVIOUS (both optional),
+# and exactly one of IMAGE (register a revision with it first) or TASK_DEFINITION (roll to
+# that revision) from the environment. Rolls SERVICE and fails if ECS rolls it back,
+# restoring PREVIOUS as the recorded version. With the platform down it changes nothing and
+# passes: the recorded image is what `make up` starts.
 set -euo pipefail
 # shellcheck source=SCRIPTDIR/../lib/ecs.sh
 . "$(dirname "$0")/../lib/ecs.sh"
@@ -27,11 +28,23 @@ td=${TASK_DEFINITION:-}
 if [ -z "$td" ]; then
   td=$(register_revision "$CLUSTER" "$SERVICE" "$IMAGE" "${CONTAINER:-}")
 fi
-# The version was recorded before the rollout, so a rollout ECS rolled back leaves the
-# parameter naming the release that failed, and the next `make up` would start it.
-if ! roll "$CLUSTER" "$SERVICE" "$td"; then
-  echo "::error::/discordia/prd/image/$SERVICE still names the version that failed, so the next \`make up\` starts it; dispatch deploy.yml with the previous release tag" >&2
-  echo "- \`$SERVICE\`: rolled back by ECS; \`/discordia/prd/image/$SERVICE\` still names the failed version, redeploy the previous tag" >>"$GITHUB_STEP_SUMMARY"
+# The version was recorded before the rollout. If ECS rolls the release back, put back the
+# value build-push replaced (PREVIOUS), so the next `make up` starts what is serving. Only
+# then: a rollout that timed out may still complete, and one that something else replaced
+# is that deploy's business.
+rc=0
+roll "$CLUSTER" "$SERVICE" "$td" || rc=$?
+if [ "$rc" -ne 0 ]; then
+  parameter=/discordia/prd/image/$SERVICE
+  if [ "$rc" -eq 3 ] && [ -n "${PREVIOUS:-}" ] &&
+    aws ssm put-parameter --name "$parameter" --type String --overwrite \
+      --value "$PREVIOUS" --output json >/dev/null; then
+    echo "::error::$SERVICE was rolled back; restored $parameter to $PREVIOUS, which is serving" >&2
+    echo "- \`$SERVICE\`: rolled back by ECS; restored \`$parameter\` to \`$PREVIOUS\`" >>"$GITHUB_STEP_SUMMARY"
+  elif [ "$rc" -eq 3 ]; then
+    echo "::error::$parameter still names the version that failed, so the next \`make up\` starts it; dispatch deploy.yml with the previous release tag" >&2
+    echo "- \`$SERVICE\`: rolled back by ECS; \`$parameter\` still names the failed version, redeploy the previous tag" >>"$GITHUB_STEP_SUMMARY"
+  fi
   exit 1
 fi
 echo "arn=$td" >>"$GITHUB_OUTPUT"
