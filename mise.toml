@@ -1,0 +1,17 @@
+[tools]
+actionlint = "1.7.12"
+bats = "1.14.0"
+jq = "1.8.2"
+pinact = "5.0.0"
+shellcheck = "0.11.0"
+
+[tasks.test]
+description = "The bats suite for the composite actions"
+run = "bats test"
+
+[tasks.lint]
+description = "Workflows with actionlint, every script with shellcheck"
+run = [
+  "actionlint",
+  "shellcheck --external-sources test/stub/aws test/helpers.bash actions/lib/*.sh actions/*/*.sh",
+]

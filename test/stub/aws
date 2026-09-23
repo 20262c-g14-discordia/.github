@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# A fake `aws` for the bats tests, put first on PATH by test/helpers.bash.
+#
+# Records each call's arguments, one line per call, in $AWS_STUB_LOG. Answers the Nth call
+# of an operation, e.g. `aws ecs describe-services`, from
+# $AWS_STUB_DIR/ecs.describe-services.N.{json,err,rc}, or from ecs.describe-services.
+# {json,err,rc} when there is no numbered answer: .json goes to stdout, .err to stderr, and
+# .rc is the exit code (0 if absent). A call with no answer fails with 97, so a test cannot
+# pass by accident on a call it did not expect.
+set -euo pipefail
+
+printf '%s\n' "$*" >>"$AWS_STUB_LOG"
+
+operation=$1.$2
+counter=$AWS_STUB_DIR/.$operation.count
+n=$(($(cat "$counter" 2>/dev/null || echo 0) + 1))
+echo "$n" >"$counter"
+
+has_answer() { [ -e "$1.json" ] || [ -e "$1.err" ] || [ -e "$1.rc" ]; }
+
+base=$AWS_STUB_DIR/$operation.$n
+has_answer "$base" || base=$AWS_STUB_DIR/$operation
+if ! has_answer "$base"; then
+  echo "stub aws: no answer for call $n of $operation: aws $*" >&2
+  exit 97
+fi
+if [ -e "$base.err" ]; then cat "$base.err" >&2; fi
+if [ -e "$base.json" ]; then cat "$base.json"; fi
+exit "$(cat "$base.rc" 2>/dev/null || echo 0)"
