@@ -66,3 +66,40 @@ register_revision() {
   out=$(aws ecs register-task-definition --cli-input-json "file://$file" --output json) || return 1
   jq -r '.taskDefinition.taskDefinitionArn' <<<"$out"
 }
+
+# roll CLUSTER SERVICE TASK_DEFINITION_ARN
+# Points the service at the revision and waits for that deployment's own outcome. Not
+# `aws ecs wait services-stable`: a service the circuit breaker has rolled back is stable
+# too, and would pass. ROLL_POLL_ATTEMPTS (60) and ROLL_POLL_SECONDS (10) bound the wait.
+roll() {
+  local cluster=$1 service=$2 td=$3 out deployment state i
+  local attempts=${ROLL_POLL_ATTEMPTS:-60} interval=${ROLL_POLL_SECONDS:-10}
+  out=$(aws ecs update-service --cluster "$cluster" --service "$service" \
+    --task-definition "$td" --output json) || return 1
+  deployment=$(jq -r --arg td "$td" '[.service.deployments[]
+      | select(.status == "PRIMARY" and .taskDefinition == $td) | .id][0] // empty' <<<"$out")
+  if [ -z "$deployment" ]; then
+    echo "::error::ECS started no deployment of $td for $service" >&2
+    return 1
+  fi
+  for ((i = 0; i < attempts; i++)); do
+    out=$(aws ecs describe-services --cluster "$cluster" --services "$service" \
+      --output json) || return 1
+    state=$(jq -r --arg id "$deployment" '[.services[0].deployments[]?
+        | select(.id == $id) | .rolloutState][0] // "GONE"' <<<"$out")
+    case $state in
+      COMPLETED) return 0 ;;
+      FAILED)
+        echo "::error::$service: deployment $deployment failed; ECS rolled back to the previous revision" >&2
+        return 1
+        ;;
+      GONE)
+        echo "::error::$service: deployment $deployment is no longer listed; something replaced it" >&2
+        return 1
+        ;;
+    esac
+    sleep "$interval"
+  done
+  echo "::error::$service: deployment $deployment did not settle within $((attempts * interval))s" >&2
+  return 1
+}
