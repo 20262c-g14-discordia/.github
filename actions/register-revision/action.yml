@@ -1,0 +1,40 @@
+name: register-revision
+description: >-
+  Register a revision of a service's current task definition in which only one container's
+  image changes. With the platform down, registers nothing and outputs skipped=true.
+
+inputs:
+  service:
+    description: "ECS service, named after its image."
+    required: true
+  image:
+    description: "Image pinned by digest, as build-push outputs it."
+    required: true
+  container:
+    description: "Container to update. Needed only when the task definition has several."
+    required: false
+    default: ""
+  cluster:
+    description: "ECS cluster."
+    required: false
+    default: discordia-prd-cluster
+
+outputs:
+  arn:
+    description: "The new revision's ARN; empty when skipped."
+    value: ${{ steps.register.outputs.arn }}
+  skipped:
+    description: "true when the platform is down and nothing was registered."
+    value: ${{ steps.register.outputs.skipped }}
+
+runs:
+  using: composite
+  steps:
+    - id: register
+      shell: bash
+      env:
+        CLUSTER: ${{ inputs.cluster }}
+        SERVICE: ${{ inputs.service }}
+        IMAGE: ${{ inputs.image }}
+        CONTAINER: ${{ inputs.container }}
+      run: '"$GITHUB_ACTION_PATH/register-revision.sh"'

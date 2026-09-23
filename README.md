@@ -85,3 +85,31 @@ Issues at read and write on the repositories it covers.
 The rules themselves live in [`meta/CONTRIBUTING.md`](https://github.com/20262c-g14-discordia/meta/blob/main/CONTRIBUTING.md).
 Change the rule there first, then the template or the check here, in one PR each. This
 repo takes PRs like any other: squash only, `Ref DIS-n` in the body.
+
+## Deploy actions
+
+Composite actions a service repository's `deploy.yml` calls to publish a release to ECS.
+The design, and why each step exists, is in
+[`meta`'s continuous-deployment spec](https://github.com/20262c-g14-discordia/meta/blob/main/docs/superpowers/specs/2026-09-22-continuous-deployment-of-the-services-design.md).
+
+| Action | Does |
+|---|---|
+| `actions/build-push` | Refuses anything but a release tag, builds, pushes `discordia/<image>:<tag>` to ECR, and records `…@sha256:…` in `/discordia/prd/image/<image>`, the version the platform runs |
+| `actions/register-revision` | Registers a revision of the service's task definition with only one container's image changed |
+| `actions/roll-service` | Rolls the service to an image or a revision and fails if the circuit breaker rolls it back |
+
+With the platform down, `register-revision` and `roll-service` change nothing and pass: the
+recorded image is what the next `make up` starts. An error that means "cannot tell", such
+as a denied permission, fails instead.
+
+```yaml
+      - id: identity
+        uses: 20262c-g14-discordia/.github/actions/build-push@v1
+        with: { image: identity, context: ., tag: "${{ inputs.ref }}" }
+      - uses: 20262c-g14-discordia/.github/actions/roll-service@v1
+        with: { service: identity, image: "${{ steps.identity.outputs.image }}" }
+```
+
+The logic is bash in `actions/lib/ecs.sh` and one script per action, tested with bats against
+a fake `aws` (`test/stub/aws`): `mise install`, then `mise run test` and `mise run lint`.
+Releases are the moving tag `v1`; a breaking change to an input or output is `v2`.
