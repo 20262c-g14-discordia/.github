@@ -1,0 +1,44 @@
+name: roll-service
+description: >-
+  Roll an ECS service to a new revision -- from an image, or from a revision
+  register-revision made -- and fail if the circuit breaker rolls it back. With the platform
+  down, changes nothing and passes.
+
+inputs:
+  service:
+    description: "ECS service, named after its image."
+    required: true
+  image:
+    description: "Image pinned by digest. Give this or task-definition, not both."
+    required: false
+    default: ""
+  task-definition:
+    description: "A revision ARN from register-revision. Give this or image, not both."
+    required: false
+    default: ""
+  container:
+    description: "Container to update when rolling from an image with several containers."
+    required: false
+    default: ""
+  cluster:
+    description: "ECS cluster."
+    required: false
+    default: discordia-prd-cluster
+
+outputs:
+  arn:
+    description: "The revision now serving; empty when the platform was down."
+    value: ${{ steps.roll.outputs.arn }}
+
+runs:
+  using: composite
+  steps:
+    - id: roll
+      shell: bash
+      env:
+        CLUSTER: ${{ inputs.cluster }}
+        SERVICE: ${{ inputs.service }}
+        IMAGE: ${{ inputs.image }}
+        TASK_DEFINITION: ${{ inputs.task-definition }}
+        CONTAINER: ${{ inputs.container }}
+      run: '"$GITHUB_ACTION_PATH/roll-service.sh"'
