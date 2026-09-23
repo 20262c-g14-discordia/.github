@@ -27,6 +27,12 @@ td=${TASK_DEFINITION:-}
 if [ -z "$td" ]; then
   td=$(register_revision "$CLUSTER" "$SERVICE" "$IMAGE" "${CONTAINER:-}")
 fi
-roll "$CLUSTER" "$SERVICE" "$td"
+# The version was recorded before the rollout, so a rollout ECS rolled back leaves the
+# parameter naming the release that failed, and the next `make up` would start it.
+if ! roll "$CLUSTER" "$SERVICE" "$td"; then
+  echo "::error::/discordia/prd/image/$SERVICE still names the version that failed, so the next \`make up\` starts it; dispatch deploy.yml with the previous release tag" >&2
+  echo "- \`$SERVICE\`: rolled back by ECS; \`/discordia/prd/image/$SERVICE\` still names the failed version, redeploy the previous tag" >>"$GITHUB_STEP_SUMMARY"
+  exit 1
+fi
 echo "arn=$td" >>"$GITHUB_OUTPUT"
 echo "- \`$SERVICE\` → \`$td\`" >>"$GITHUB_STEP_SUMMARY"

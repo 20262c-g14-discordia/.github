@@ -93,3 +93,18 @@ registers_td5() {
   [ "$status" -eq 0 ]
   ! grep -q "register-task-definition\|describe-task-definition" "$AWS_STUB_LOG"
 }
+
+@test "roll-service: a rolled-back rollout says the recorded version still names it" {
+  export IMAGE="" TASK_DEFINITION=$TD5
+  service ACTIVE "$TD4" | respond ecs.describe-services 1
+  jq -n --argjson d "[$(deployment ecs-svc/2 PRIMARY "$TD5" IN_PROGRESS)]" '{service: {deployments: $d}}' |
+    respond ecs.update-service -
+  service ACTIVE "$TD4" "[$(deployment ecs-svc/3 PRIMARY "$TD4" IN_PROGRESS),$(deployment ecs-svc/2 ACTIVE "$TD5" FAILED)]" |
+    respond ecs.describe-services -
+
+  run --separate-stderr "$ROLL"
+  [ "$status" -ne 0 ]
+  [[ $stderr == *"/discordia/prd/image/identity still names the version that failed"* ]]
+  [[ $stderr == *"dispatch deploy.yml with the previous release tag"* ]]
+  grep -qF "rolled back" "$GITHUB_STEP_SUMMARY"
+}
