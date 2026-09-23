@@ -96,7 +96,7 @@ The design, and why each step exists, is in
 |---|---|
 | `actions/build-push` | Refuses anything but a release tag, builds, pushes `discordia/<image>:<tag>` to ECR, and records `…@sha256:…` in `/discordia/prd/image/<image>`, the version the platform runs |
 | `actions/register-revision` | Registers a revision of the service's task definition with only one container's image changed |
-| `actions/roll-service` | Rolls the service to an image or a revision and fails if the circuit breaker rolls it back |
+| `actions/roll-service` | Rolls the service to an image or a revision and fails if the circuit breaker rolls it back, restoring the version `build-push` replaced |
 
 With the platform down, `register-revision` and `roll-service` change nothing and pass: the
 recorded image is what the next `make up` starts. An error that means "cannot tell", such
@@ -107,7 +107,10 @@ as a denied permission, fails instead.
         uses: 20262c-g14-discordia/.github/actions/build-push@v1
         with: { image: identity, context: ., tag: "${{ inputs.ref }}" }
       - uses: 20262c-g14-discordia/.github/actions/roll-service@v1
-        with: { service: identity, image: "${{ steps.identity.outputs.image }}" }
+        with:
+          service: identity
+          image: ${{ steps.identity.outputs.image }}
+          previous: ${{ steps.identity.outputs.previous }}
 ```
 
 The logic is bash in `actions/lib/ecs.sh` and one script per action, tested with bats against

@@ -16,6 +16,10 @@ inputs:
     description: "A revision ARN from register-revision. Give this or image, not both."
     required: false
     default: ""
+  previous:
+    description: "build-push's `previous`. If ECS rolls the release back, it is written back to the parameter."
+    required: false
+    default: ""
   container:
     description: "Container to update when rolling from an image with several containers."
     required: false
@@ -41,4 +45,5 @@ runs:
         IMAGE: ${{ inputs.image }}
         TASK_DEFINITION: ${{ inputs.task-definition }}
         CONTAINER: ${{ inputs.container }}
+        PREVIOUS: ${{ inputs.previous }}
       run: '"$GITHUB_ACTION_PATH/roll-service.sh"'

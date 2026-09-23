@@ -8,7 +8,9 @@
 #   build-push.sh record IMAGE REGISTRY DIGEST TAG
 #       Writes REGISTRY/discordia/IMAGE@DIGEST to /discordia/prd/image/IMAGE, the version
 #       the platform runs, and to the step output `image`. Refuses a missing or malformed
-#       digest, so the version can never point at nothing.
+#       digest, so the version can never point at nothing. Outputs the value it replaced as
+#       `previous` (empty if there was none), which roll-service restores if ECS rolls the
+#       release back; if that value cannot be read, nothing is written.
 set -euo pipefail
 
 case ${1:-} in
@@ -25,9 +27,25 @@ case ${1:-} in
       exit 1
     fi
     ref=$registry/discordia/$image@$digest
-    aws ssm put-parameter --name "/discordia/prd/image/$image" --type String --overwrite \
+    parameter=/discordia/prd/image/$image
+    err=$(mktemp)
+    if out=$(aws ssm get-parameter --name "$parameter" --output json 2>"$err"); then
+      previous=$(jq -r '.Parameter.Value' <<<"$out")
+    elif grep -q ParameterNotFound "$err"; then
+      previous=""
+    else
+      cat "$err" >&2
+      rm -f "$err"
+      echo "::error::cannot read $parameter, so a rollback could not restore it; the version was not recorded" >&2
+      exit 1
+    fi
+    rm -f "$err"
+    aws ssm put-parameter --name "$parameter" --type String --overwrite \
       --value "$ref" --output json >/dev/null
-    echo "image=$ref" >>"$GITHUB_OUTPUT"
+    {
+      echo "image=$ref"
+      echo "previous=$previous"
+    } >>"$GITHUB_OUTPUT"
     echo "- \`$image\` $tag → \`$ref\`" >>"$GITHUB_STEP_SUMMARY"
     ;;
   *)

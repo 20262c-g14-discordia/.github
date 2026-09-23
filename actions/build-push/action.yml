@@ -22,6 +22,9 @@ outputs:
   image:
     description: "The pushed image, pinned by digest: <registry>/discordia/<image>@sha256:…"
     value: ${{ steps.record.outputs.image }}
+  previous:
+    description: "The value the parameter held before; pass it to roll-service so a rollback restores it."
+    value: ${{ steps.record.outputs.previous }}
 
 runs:
   using: composite

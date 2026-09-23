@@ -71,6 +71,8 @@ register_revision() {
 # Points the service at the revision and waits for that deployment's own outcome. Not
 # `aws ecs wait services-stable`: a service the circuit breaker has rolled back is stable
 # too, and would pass. ROLL_POLL_ATTEMPTS (60) and ROLL_POLL_SECONDS (10) bound the wait.
+# Returns 3 when the circuit breaker rolled this deployment back, and 1 on any other
+# failure, so the caller knows when the previous revision is what is serving.
 roll() {
   local cluster=$1 service=$2 td=$3 out deployment state i
   local attempts=${ROLL_POLL_ATTEMPTS:-60} interval=${ROLL_POLL_SECONDS:-10}
@@ -91,7 +93,7 @@ roll() {
       COMPLETED) return 0 ;;
       FAILED)
         echo "::error::$service: deployment $deployment failed; ECS rolled back to the previous revision" >&2
-        return 1
+        return 3
         ;;
       GONE)
         echo "::error::$service: deployment $deployment is no longer listed; something replaced it" >&2
@@ -100,6 +102,6 @@ roll() {
     esac
     sleep "$interval"
   done
-  echo "::error::$service: deployment $deployment did not settle within $((attempts * interval))s" >&2
+  echo "::error::$service: deployment $deployment did not settle within $((attempts * interval))s; ECS may still finish it" >&2
   return 1
 }
