@@ -49,6 +49,10 @@ runs:
         file: ${{ inputs.file != '' && inputs.file || format('{0}/Dockerfile', inputs.context) }}
         push: true
         provenance: false
+        # linux/amd64: ECS runs every task on X86_64 (meta: ADR-0013, "Fargate runs x86_64,
+        # pinned at both ends"). Pinned so the image does not follow the runner's
+        # architecture.
+        platforms: linux/amd64
         tags: ${{ steps.ecr.outputs.registry }}/discordia/${{ inputs.image }}:${{ inputs.tag }}
 
     - id: record

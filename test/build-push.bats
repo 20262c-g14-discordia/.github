@@ -87,3 +87,12 @@ previous_is() { # the get-parameter answer: what the parameter named before this
   ! grep -q "ssm put-parameter" "$AWS_STUB_LOG"
   [ ! -s "$GITHUB_OUTPUT" ]
 }
+
+@test "the build targets linux/amd64, the architecture Fargate runs" {
+  # ADR-0013 in meta, "Fargate runs x86_64, pinned at both ends". Without this line the
+  # image follows the runner's architecture, and ECS's X86_64 tasks would not start an ARM
+  # image.
+  run grep -E '^[[:space:]]+platforms: linux/amd64$' \
+    "$BATS_TEST_DIRNAME/../actions/build-push/action.yml"
+  [ "$status" -eq 0 ]
+}
