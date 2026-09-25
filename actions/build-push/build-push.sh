@@ -6,7 +6,7 @@
 #       Exits 0 only for a release-please tag, <component>-v<major>.<minor>.<patch>.
 #       Deploys run from releases, never from a branch (ADR-0009).
 #   build-push.sh record IMAGE REGISTRY DIGEST TAG
-#       Writes REGISTRY/discordia/IMAGE@DIGEST to /discordia/prd/image/IMAGE, the version
+#       Writes REGISTRY/discordia/IMAGE@DIGEST to /discordia/prd/IMAGE/image, the version
 #       the platform runs, and to the step output `image`. Refuses a missing or malformed
 #       digest, so the version can never point at nothing. Outputs the value it replaced as
 #       `previous` (empty if there was none), which roll-service restores if ECS rolls the
@@ -27,7 +27,7 @@ case ${1:-} in
       exit 1
     fi
     ref=$registry/discordia/$image@$digest
-    parameter=/discordia/prd/image/$image
+    parameter=/discordia/prd/$image/image
     err=$(mktemp)
     if out=$(aws ssm get-parameter --name "$parameter" --output json 2>"$err"); then
       previous=$(jq -r '.Parameter.Value' <<<"$out")

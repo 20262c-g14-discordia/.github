@@ -94,7 +94,7 @@ The design, and why each step exists, is in
 
 | Action | Does |
 |---|---|
-| `actions/build-push` | Refuses anything but a release tag, builds, pushes `discordia/<image>:<tag>` to ECR, and records `…@sha256:…` in `/discordia/prd/image/<image>`, the version the platform runs |
+| `actions/build-push` | Refuses anything but a release tag, builds, pushes `discordia/<image>:<tag>` to ECR, and records `…@sha256:…` in `/discordia/prd/<image>/image`, the version the platform runs |
 | `actions/register-revision` | Registers a revision of the service's task definition with only one container's image changed |
 | `actions/roll-service` | Rolls the service to an image or a revision and fails if the circuit breaker rolls it back, restoring the version `build-push` replaced |
 

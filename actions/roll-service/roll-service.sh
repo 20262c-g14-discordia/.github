@@ -35,7 +35,7 @@ fi
 rc=0
 roll "$CLUSTER" "$SERVICE" "$td" || rc=$?
 if [ "$rc" -ne 0 ]; then
-  parameter=/discordia/prd/image/$SERVICE
+  parameter=/discordia/prd/$SERVICE/image
   if [ "$rc" -eq 3 ] && [ -n "${PREVIOUS:-}" ] &&
     aws ssm put-parameter --name "$parameter" --type String --overwrite \
       --value "$PREVIOUS" --output json >/dev/null; then

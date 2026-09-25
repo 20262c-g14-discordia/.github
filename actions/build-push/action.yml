@@ -1,7 +1,7 @@
 name: build-push
 description: >-
   Build an image, push it to ECR tagged with the release, and record its digest in
-  /discordia/prd/image/<image> as the version the platform runs.
+  /discordia/prd/<image>/image as the version the platform runs.
 
 inputs:
   image:
