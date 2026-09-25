@@ -22,7 +22,7 @@ setup() {
 }
 
 previous_is() { # the get-parameter answer: what the parameter named before this release
-  jq -n --arg v "$1" '{Parameter: {Name: "/discordia/prd/image/identity", Type: "String", Value: $v}}'
+  jq -n --arg v "$1" '{Parameter: {Name: "/discordia/prd/identity/image", Type: "String", Value: $v}}'
 }
 
 @test "record writes the digest reference to the image's parameter" {
@@ -32,7 +32,7 @@ previous_is() { # the get-parameter answer: what the parameter named before this
 
   run --separate-stderr "$SCRIPT" record identity "$REGISTRY" "$DIGEST" identity-v0.4.0
   [ "$status" -eq 0 ]
-  grep -qx -- "ssm put-parameter --name /discordia/prd/image/identity --type String --overwrite --value $ref --output json" "$AWS_STUB_LOG"
+  grep -qx -- "ssm put-parameter --name /discordia/prd/identity/image --type String --overwrite --value $ref --output json" "$AWS_STUB_LOG"
   grep -qx "image=$ref" "$GITHUB_OUTPUT"
   grep -qF "identity-v0.4.0" "$GITHUB_STEP_SUMMARY"
 }
@@ -63,7 +63,7 @@ previous_is() { # the get-parameter answer: what the parameter named before this
 
   run --separate-stderr "$SCRIPT" record identity "$REGISTRY" "$DIGEST" identity-v0.4.0
   [ "$status" -eq 0 ]
-  grep -qx -- "ssm get-parameter --name /discordia/prd/image/identity --output json" "$AWS_STUB_LOG"
+  grep -qx -- "ssm get-parameter --name /discordia/prd/identity/image --output json" "$AWS_STUB_LOG"
   grep -qx "previous=$old" "$GITHUB_OUTPUT"
 }
 

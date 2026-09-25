@@ -117,7 +117,7 @@ registers_td5() {
 
   run --separate-stderr "$ROLL"
   [ "$status" -ne 0 ]
-  [[ $stderr == *"/discordia/prd/image/identity still names the version that failed"* ]]
+  [[ $stderr == *"/discordia/prd/identity/image still names the version that failed"* ]]
   [[ $stderr == *"dispatch deploy.yml with the previous release tag"* ]]
   grep -qF "rolled back" "$GITHUB_STEP_SUMMARY"
 }
@@ -129,8 +129,8 @@ registers_td5() {
 
   run --separate-stderr "$ROLL"
   [ "$status" -ne 0 ]
-  grep -qx -- "ssm put-parameter --name /discordia/prd/image/identity --type String --overwrite --value $OLD --output json" "$AWS_STUB_LOG"
-  [[ $stderr == *"restored /discordia/prd/image/identity"* ]]
+  grep -qx -- "ssm put-parameter --name /discordia/prd/identity/image --type String --overwrite --value $OLD --output json" "$AWS_STUB_LOG"
+  [[ $stderr == *"restored /discordia/prd/identity/image"* ]]
   grep -qF "restored" "$GITHUB_STEP_SUMMARY"
 }
 
