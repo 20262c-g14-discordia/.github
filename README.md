@@ -66,6 +66,27 @@ The tag it produces carries that component, `discordia-web-v0.1.0`, which keeps 
 unambiguous across the org's repositories. Set `"include-component-in-tag": false` in the
 config if a repository wants a bare `v0.1.0` instead.
 
+### Monorepo callers
+
+release-please sets `release_created` and `tag_name` only for the root path `.`. A
+repository with several packages reads two other outputs instead: `paths_released`, the
+JSON array of the paths released by this run, and `all`, every output of the action as a
+JSON object, where each path's keys carry it as a prefix (`apps/web--tag_name`,
+`apps/web--release_created`, …).
+
+```yaml
+jobs:
+  release:
+    uses: 20262c-g14-discordia/.github/.github/workflows/release-please.yml@main
+    secrets: inherit
+  deploy-web:
+    needs: release
+    if: contains(fromJSON(needs.release.outputs.paths_released || '[]'), 'apps/web')
+    uses: ./.github/workflows/deploy-web.yml
+    with:
+      tag: ${{ fromJSON(needs.release.outputs.all)['apps/web--tag_name'] }}
+```
+
 ### The release token
 
 With the default workflow token GitHub does not run CI on the release PR: it refuses to

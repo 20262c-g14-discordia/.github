@@ -30,11 +30,17 @@ on:
   workflow_call:
     outputs:
       release_created:
-        description: "true when this run published a release"
+        description: "true when this run published a release (root path `.` only)"
         value: ${{ jobs.release-please.outputs.release_created }}
       tag_name:
-        description: "The tag of the release published by this run, if any"
+        description: "The tag of the release published by this run, if any (root path `.` only)"
         value: ${{ jobs.release-please.outputs.tag_name }}
+      paths_released:
+        description: "JSON array of the package paths released by this run, e.g. [\"apps/web\"]"
+        value: ${{ jobs.release-please.outputs.paths_released }}
+      all:
+        description: "Every release-please output as a JSON object; per-path keys are `<path>--release_created`, `<path>--tag_name`, …"
+        value: ${{ jobs.release-please.outputs.all }}
 
 permissions:
   contents: write
@@ -47,6 +53,8 @@ jobs:
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
+      paths_released: ${{ steps.release.outputs.paths_released }}
+      all: ${{ toJSON(steps.release.outputs) }}
     steps:
       - id: release
         uses: googleapis/release-please-action@v4
