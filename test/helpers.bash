@@ -32,10 +32,16 @@ respond_error() {
   printf '%s\n' "$4" >"$file.err"
 }
 
-# service STATUS TASK_DEFINITION [DEPLOYMENTS_JSON] -- a describe-services answer.
+# service STATUS TASK_DEFINITION [DEPLOYMENTS_JSON] -- a describe-services answer for a
+# Fargate service named $SERVICE (identity when unset), on its own subnets.
 service() {
-  jq -n --arg status "$1" --arg td "$2" --argjson deployments "${3:-[]}" \
-    '{services: [{serviceName: "identity", status: $status, taskDefinition: $td,
+  jq -n --arg name "${SERVICE:-identity}" --arg status "$1" --arg td "$2" \
+    --argjson deployments "${3:-[]}" \
+    '{services: [{serviceName: $name, status: $status, taskDefinition: $td,
+                  launchType: "FARGATE", platformVersion: "LATEST",
+                  networkConfiguration: {awsvpcConfiguration: {
+                    subnets: ["subnet-0a1b2c3d", "subnet-4e5f6a7b"],
+                    securityGroups: ["sg-0123abcd"], assignPublicIp: "ENABLED"}},
                   deployments: $deployments}], failures: []}'
 }
 
@@ -65,3 +71,22 @@ TWO_CONTAINERS='[{"name":"app","image":"app@sha256:aaa"},{"name":"log-router","i
 TD4=arn:aws:ecs:us-east-1:837111420485:task-definition/identity:4
 # shellcheck disable=SC2034
 TD5=arn:aws:ecs:us-east-1:837111420485:task-definition/identity:5
+# shellcheck disable=SC2034
+MESSAGING_TD=arn:aws:ecs:us-east-1:837111420485:task-definition/messaging:7
+# shellcheck disable=SC2034
+TASK=arn:aws:ecs:us-east-1:837111420485:task/discordia-prd-cluster/0f1e2d3c4b5a69788796a5b4c3d2e1f0
+
+# started_task -- a run-task answer that started TASK.
+started_task() {
+  jq -n --arg task "$TASK" '{tasks: [{taskArn: $task, lastStatus: "PROVISIONING"}], failures: []}'
+}
+
+# stopped_task CONTAINER EXIT_CODE|null STOPPED_REASON -- a describe-tasks answer: TASK
+# stopped, and CONTAINER exited EXIT_CODE (null when it never started).
+stopped_task() {
+  jq -n --arg task "$TASK" --arg c "$1" --argjson code "$2" --arg reason "$3" \
+    '{tasks: [{taskArn: $task, lastStatus: "STOPPED", stopCode: "EssentialContainerExited",
+               stoppedReason: $reason,
+               containers: [{name: $c, lastStatus: "STOPPED", exitCode: $code}]}],
+      failures: []}'
+}

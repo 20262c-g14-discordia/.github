@@ -117,11 +117,12 @@ The design, and why each step exists, is in
 |---|---|
 | `actions/build-push` | Refuses anything but a release tag, builds, pushes `discordia/<image>:<tag>` to ECR, and records `…@sha256:…` in `/discordia/prd/<image>/image`, the version the platform runs |
 | `actions/register-revision` | Registers a revision of the service's task definition with only one container's image changed |
+| `actions/run-once` | Runs one task of a revision on the service's own network, with a command and environment override, and fails unless the container exits 0; the exit code and the stop reason go to the job summary |
 | `actions/roll-service` | Rolls the service to an image or a revision and fails if the circuit breaker rolls it back, restoring the version `build-push` replaced |
 
-With the platform down, `register-revision` and `roll-service` change nothing and pass: the
-recorded image is what the next `make up` starts. An error that means "cannot tell", such
-as a denied permission, fails instead.
+With the platform down, `register-revision`, `run-once` and `roll-service` change nothing and
+pass: the recorded image is what the next `make up` starts. An error that means "cannot
+tell", such as a denied permission, fails instead.
 
 ```yaml
       - id: identity
@@ -133,6 +134,32 @@ as a denied permission, fails instead.
           image: ${{ steps.identity.outputs.image }}
           previous: ${{ steps.identity.outputs.previous }}
 ```
+
+A service with a migration registers one revision, runs the migration from it, then rolls
+to it, so both run the same digest. `run-once` borrows the service's subnets, security
+groups and launch type, so it can reach whatever the service can. `environment` is added to
+the container's own environment and wins over it. Anything the command needs to know from
+AWS, such as a database task's address, is looked up by an earlier step in the caller and
+passed in. The action does not look anything up.
+
+```yaml
+      - id: revision
+        uses: 20262c-g14-discordia/.github/actions/register-revision@v1
+        with: { service: messaging, image: "${{ steps.app.outputs.image }}" }
+      - uses: 20262c-g14-discordia/.github/actions/run-once@v1
+        with:
+          service: messaging
+          task-definition: ${{ steps.revision.outputs.arn }}
+          command: '["/messaging", "migrate", "up"]'
+          environment: '{"MONGO_URI": "${{ steps.mongo.outputs.uri }}"}'
+      - uses: 20262c-g14-discordia/.github/actions/roll-service@v1
+        with: { service: messaging, task-definition: "${{ steps.revision.outputs.arn }}" }
+```
+
+The deploy role needs `ecs:RunTask` on its task definitions, `ecs:DescribeTasks` (the wait
+polls it) and `iam:PassRole` on the task's roles. `infrastructure`'s `service-deploy-role`
+grants all three. The wait gives up after 10 minutes and fails the step, but the task may
+still be running.
 
 The logic is bash in `actions/lib/ecs.sh` and one script per action, tested with bats against
 a fake `aws` (`test/stub/aws`): `mise install`, then `mise run test` and `mise run lint`.

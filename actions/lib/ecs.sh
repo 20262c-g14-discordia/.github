@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# ECS helpers shared by the register-revision and roll-service actions.
+# ECS helpers shared by the register-revision, roll-service and run-once actions.
 #
 # Every AWS call asks for the full JSON and reads it with jq rather than --query, so the
 # tests' fake `aws` (test/stub/aws) answers with the API's real response shapes. The
@@ -104,4 +104,47 @@ roll() {
   done
   echo "::error::$service: deployment $deployment did not settle within $((attempts * interval))s; ECS may still finish it" >&2
   return 1
+}
+
+# run_task CLUSTER SERVICE TASK_DEFINITION CONTAINER COMMAND ENVIRONMENT
+# Runs one task of TASK_DEFINITION on SERVICE's own network configuration and launch type,
+# with CONTAINER's command replaced by COMMAND (a JSON array) and ENVIRONMENT (a JSON object)
+# added to its environment, and waits for it to stop -- at most the waiter's 10 minutes.
+# Borrowing the service's network is what lets the task reach the service's datastore.
+# Prints {"task", "stoppedReason", "exitCode"}; exitCode is null when CONTAINER never ran.
+# Returns 0 once the task has stopped, whatever it exited: what that means is the caller's.
+# The request is left in $RUNNER_TEMP/run-task.json.
+run_task() {
+  local cluster=$1 service=$2 td=$3 container=$4 command=$5 environment=$6 out file task
+  out=$(aws ecs describe-services --cluster "$cluster" --services "$service" \
+    --output json) || return 1
+  file=${RUNNER_TEMP:-$(mktemp -d)}/run-task.json
+  jq --arg cluster "$cluster" --arg td "$td" --arg c "$container" \
+    --argjson command "$command" --argjson environment "$environment" '
+    .services[0] as $s
+    | {cluster: $cluster, taskDefinition: $td, count: 1, startedBy: "run-once",
+       networkConfiguration: $s.networkConfiguration,
+       overrides: {containerOverrides: [{name: $c, command: $command,
+         environment: ($environment | to_entries
+                       | map({name: .key, value: (.value | tostring)}))}]}}
+    # A service runs on a launch type or on a capacity provider strategy; ECS refuses both.
+    + (if $s.launchType then
+         {launchType: $s.launchType, platformVersion: ($s.platformVersion // "LATEST")}
+       else {capacityProviderStrategy: $s.capacityProviderStrategy} end)' \
+    <<<"$out" >"$file" || return 1
+  out=$(aws ecs run-task --cli-input-json "file://$file" --output json) || return 1
+  task=$(jq -r '.tasks[0].taskArn // empty' <<<"$out")
+  if [ -z "$task" ]; then
+    echo "::error::ECS started no task of $td for $service: $(jq -r \
+      '[.failures[]? | "\(.arn // "?"): \(.reason)"] | join("; ")' <<<"$out")" >&2
+    return 1
+  fi
+  if ! aws ecs wait tasks-stopped --cluster "$cluster" --tasks "$task"; then
+    echo "::error::$task did not stop within the waiter's 10 minutes; it may still be running" >&2
+    return 1
+  fi
+  out=$(aws ecs describe-tasks --cluster "$cluster" --tasks "$task" --output json) || return 1
+  jq -c --arg c "$container" '.tasks[0]
+    | {task: .taskArn, stoppedReason: (.stoppedReason // ""),
+       exitCode: ([.containers[]? | select(.name == $c) | .exitCode][0])}' <<<"$out"
 }

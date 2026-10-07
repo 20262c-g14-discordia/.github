@@ -1,0 +1,42 @@
+name: run-once
+description: >-
+  Run one task of a revision -- a migration, say -- on a service's own network
+  configuration, with its command and environment overridden, and fail unless it exits 0.
+  With the platform down, runs nothing and passes.
+
+inputs:
+  service:
+    description: "ECS service whose network configuration and launch type the task borrows."
+    required: true
+  task-definition:
+    description: "Revision ARN to run, as register-revision outputs it; empty only when the platform is down."
+    required: true
+  command:
+    description: 'The container''s command as a JSON array, e.g. ["/messaging", "migrate", "up"].'
+    required: true
+  environment:
+    description: 'Variables to add to the container''s environment, as a JSON object, e.g. {"MONGO_URI": "mongodb://..."}.'
+    required: false
+    default: "{}"
+  container:
+    description: "Container to override and whose exit code counts. Empty means the one named after the service."
+    required: false
+    default: ""
+  cluster:
+    description: "ECS cluster."
+    required: false
+    default: discordia-prd-cluster
+
+runs:
+  using: composite
+  steps:
+    - id: run
+      shell: bash
+      env:
+        CLUSTER: ${{ inputs.cluster }}
+        SERVICE: ${{ inputs.service }}
+        TASK_DEFINITION: ${{ inputs.task-definition }}
+        COMMAND: ${{ inputs.command }}
+        ENVIRONMENT: ${{ inputs.environment }}
+        CONTAINER: ${{ inputs.container }}
+      run: '"$GITHUB_ACTION_PATH/run-once.sh"'
