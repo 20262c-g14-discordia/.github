@@ -11,3 +11,11 @@ does not state. Read `meta/CLAUDE.md` for the project itself.
 
 Anything that leaves this machine (push, PRs, merges, repository or organization
 settings) needs the user to ask for it, every time. Never `git add -A` or `git add .`.
+
+## Rules and what enforces them
+
+| Rule | Enforced by |
+|---|---|
+| PR titles are `type(scope): summary` | `pr-checks.yml`, title step: fails the run |
+| Every PR references a Linear issue | `pr-checks.yml`, body step: warns only, by the team's choice in `meta/CONTRIBUTING.md` |
+| A PR closes its Linear issue, or says which criteria stay open | Nothing, by the team's choice: a check costs Actions minutes on every PR and cannot judge the criteria anyway. The template's `Closes DIS-` line and `## Still open` section, and each repo's agent instructions, carry it |

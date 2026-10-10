@@ -2,14 +2,21 @@
 Title: `type(scope): summary`, e.g. `feat(messaging): send a DM`. It becomes the squash
 commit on main. `linear issue pr` prefixes the issue ID; that is fine.
 
-Body: keep the `Ref DIS-n` line — the brief asks every PR to reference the story or task
-behind it, and Linear links the PR from that line. Use `Closes DIS-n` when this PR
-finishes the issue, `Ref DIS-n` when it only advances one. The check warns rather than
-fails without it: if the backlog has nothing that fits, replace the line with one sentence
+Body: the first line links the Linear issue behind this PR. The brief requires it. Before
+you write it, read the issue's acceptance criteria: a story's are in meta's
+`docs/stories/`, a task's are its "done when". Then pick one:
+
+- `Closes DIS-n` when this PR, with what is already merged, meets every criterion. Linear
+  closes the issue only when its last linked PR merges, so a stack can say `Closes` on
+  every PR.
+- `Ref DIS-n` when a criterion stays unmet. Name it under "Still open".
+
+Check the story above a slice too. If this PR finishes its last open slice, close the
+story as well. If the backlog has nothing that fits, replace the line with one sentence
 saying so. Every section stays; write "none" rather than deleting one.
 -->
 
-Ref DIS-
+Closes DIS-
 
 ## Why
 
@@ -18,6 +25,11 @@ Ref DIS-
 ## What changes
 
 <!-- One logical change. Tell the reviewer where to look first. -->
+
+## Still open
+
+<!-- For each issue referenced with `Ref`: "- DIS-n: the criteria this PR leaves unmet".
+Otherwise "none". -->
 
 ## Out of scope
 
