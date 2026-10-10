@@ -48,5 +48,5 @@ Otherwise "none". -->
 - [ ] User-facing strings go through i18n (clients)
 - [ ] The OpenAPI spec matches the endpoints touched (services)
 - [ ] Any architectural choice is in an ADR in `meta`, referenced above
-- [ ] README / CLAUDE.md updated where behaviour or commands changed
+- [ ] README / AGENTS.md updated where behaviour or commands changed
 - [ ] No secrets, and nothing committed that belongs in the environment
