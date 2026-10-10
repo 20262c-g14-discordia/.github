@@ -1,0 +1,19 @@
+name: pr-references
+description: >-
+  Check a PR body's Linear references. Fails when an issue is referenced with a
+  non-closing magic word (Ref, Part of, ...) and the body's "## Still open" section has
+  no "- DIS-n: ..." line saying which of its criteria stay unmet. Warns, and does not
+  fail, when the body references no issue at all.
+
+inputs:
+  body:
+    description: "The PR body, e.g. github.event.pull_request.body."
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        PR_BODY: ${{ inputs.body }}
+      run: "$GITHUB_ACTION_PATH/pr-references.sh"
