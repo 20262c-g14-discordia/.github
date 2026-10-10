@@ -13,16 +13,11 @@
 # issue ID, as `linear issue pr` does), because the title becomes the squash commit on
 # main. Warns when the title is longer than 72 characters, for the same reason.
 #
-# Fails when the body references a Linear issue with a non-closing magic word (`Ref`,
-# `Part of`, ...) and its `## Still open` section does not say which of that issue's
-# criteria stay unmet. Most finished issues stayed In Progress because their last PR said
-# `Ref`, so a PR either closes its issue or says why not. The check lives in
-# `actions/pr-references`, with its tests in `test/pr-references.bats`.
-#
-# Warns — and does not fail — when the body has no Linear magic-word line at all. The brief
-# requires every PR to reference the story or task that originates it, but a missing
-# reference is a prompt to go find the issue, not a reason to hold the branch: see
-# `meta/CONTRIBUTING.md`. Release PRs (`release-please--*` branches) skip the body check.
+# Warns — and does not fail — when the body has no Linear magic-word line such as
+# `Ref DIS-12` or `Closes DIS-12`. The brief requires every PR to reference the story or
+# task that originates it, but a missing reference is a prompt to go find the issue, not
+# a reason to hold the branch: see `meta/CONTRIBUTING.md`. Release PRs
+# (`release-please--*` branches) skip the check entirely.
 
 name: PR conventions
 
@@ -33,10 +28,11 @@ permissions: {}
 
 jobs:
   conventions:
-    name: Title and Linear references
+    name: Title (required) and Linear reference (advisory)
     runs-on: ubuntu-latest
     env:
       PR_TITLE: ${{ github.event.pull_request.title }}
+      PR_BODY: ${{ github.event.pull_request.body }}
     steps:
       - name: "Title follows type(scope): summary"
         run: |
@@ -48,9 +44,11 @@ jobs:
           if [ "${#PR_TITLE}" -gt 72 ]; then
             echo "::warning title=PR title::${#PR_TITLE} characters; it becomes the squash commit subject, keep it under 72."
           fi
-      - name: Body closes its Linear issue or says what stays open
+      - name: Body references its Linear issue
         # Release PRs are opened by release-please from main itself; no issue originates them.
         if: ${{ !startsWith(github.head_ref, 'release-please--') }}
-        uses: 20262c-g14-discordia/.github/actions/pr-references@main
-        with:
-          body: ${{ github.event.pull_request.body }}
+        run: |
+          words='closes|closed|close|fixes|fixed|fix|resolves|resolved|resolve|completes|completed|complete|refs|ref|references|part of|related to|contributes to|towards|toward'
+          if ! printf '%s\n' "$PR_BODY" | tr -d '\r' | grep -Eiq "^($words) DIS-[0-9]+\b"; then
+            echo "::warning title=Linear issue::no line like 'Ref DIS-12' or 'Closes DIS-12', so Linear will not link this PR. The brief asks every PR to reference the story or task behind it. Add one, or state in the body that no issue originated this work."
+          fi

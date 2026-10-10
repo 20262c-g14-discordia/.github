@@ -9,8 +9,7 @@ you write it, read the issue's acceptance criteria: a story's are in meta's
 - `Closes DIS-n` when this PR, with what is already merged, meets every criterion. Linear
   closes the issue only when its last linked PR merges, so a stack can say `Closes` on
   every PR.
-- `Ref DIS-n` when a criterion stays unmet. Name it under "Still open". The check fails a
-  `Ref` that "Still open" does not explain.
+- `Ref DIS-n` when a criterion stays unmet. Name it under "Still open".
 
 Check the story above a slice too. If this PR finishes its last open slice, close the
 story as well. If the backlog has nothing that fits, replace the line with one sentence
