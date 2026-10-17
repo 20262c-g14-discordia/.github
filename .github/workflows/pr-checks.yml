@@ -29,7 +29,7 @@ permissions: {}
 jobs:
   conventions:
     name: Title (required) and Linear reference (advisory)
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.LIGHT_WF_RUNNER }}
     env:
       PR_TITLE: ${{ github.event.pull_request.title }}
       PR_BODY: ${{ github.event.pull_request.body }}
